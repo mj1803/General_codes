@@ -1,0 +1,353 @@
+
+"""
+A Program to analyse, Explore and Process Date so that prediction model can be created
+"""
+
+## Step 1 : Import all the required libraries and read the entire data sheet.
+
+
+import numpy as np 
+import scipy as sp
+import pandas as pd
+import nltk
+import math
+import xlrd
+import string
+from sklearn.preprocessing import LabelEncoder
+import random
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.model_selection import train_test_split
+
+
+>> inputtweet=pd.read_excel('tweets.xlsx')
+
+## to get the a good perspective of the data we need to see the summary of the dataset and check how is the behaviour of the data.
+## Check all the Columns of dataset
+
+>> inputtweet.column
+
+Index(['TweetPostedTime', 'TweetID', 'TweetBody', 'TweetRetweetFlag',
+       'TweetSource', 'TweetInReplyToStatusID', 'TweetInReplyToUserID',
+       'TweetInReplyToScreenName', 'TweetRetweetCount', 'TweetFavoritesCount',
+       'TweetHashtags', 'TweetPlaceID', 'TweetPlaceName', 'TweetPlaceFullName',
+       'TweetCountry', 'TweetPlaceBoundingBox', 'TweetPlaceAttributes',
+       'TweetPlaceContainedWithin', 'UserID', 'UserName', 'UserScreenName',
+       'UserLocation', 'UserDescription', 'UserLink', 'UserExpandedLink',
+       'UserFollowersCount', 'UserFriendsCount', 'UserListedCount',
+       'UserSignupDate', 'UserTweetCount', 'MacroIterationNumber',
+       'tweet.place'],
+      dtype='object')
+
+## Check first two records of teh dataset
+	  
+	  
+>> inputtweet.head(2)
+
+
+>> inputtweet.describe()
+
+            TweetID  TweetInReplyToStatusID  TweetInReplyToUserID  
+count  4.236800e+04            1.010000e+02          1.890000e+02
+mean   8.110767e+17            8.107005e+17          6.489163e+16
+std    4.408380e+13            2.581401e+15          2.140714e+17
+min    8.110045e+17            7.860072e+17          3.389391e+06
+25%    8.110410e+17            8.110171e+17          7.271373e+07
+50%    8.110762e+17            8.110663e+17          3.664521e+08
+75%    8.111137e+17            8.111160e+17          2.615368e+09
+max    8.111635e+17            8.111578e+17          8.016277e+17
+
+       TweetRetweetCount  TweetFavoritesCount  TweetPlaceAttributes
+count       42368.000000         42368.000000                   0.0
+mean         1081.095402             0.805561                   NaN
+std          1432.473561            37.214059                   NaN
+min             0.000000             0.000000                   NaN
+25%             0.000000             0.000000                   NaN
+50%            14.000000             0.000000                   NaN
+75%          3069.000000             0.000000                   NaN
+max          4056.000000          2813.000000                   NaN
+
+       TweetPlaceContainedWithin        UserID  UserFollowersCount
+count                        0.0  4.236800e+04        4.236800e+04
+mean                         NaN  3.398540e+17        6.196995e+03
+std                          NaN  3.799438e+17        5.620006e+04
+min                          NaN  1.968000e+03        0.000000e+00
+25%                          NaN  5.862261e+08        4.000000e+01
+50%                          NaN  4.610624e+09        1.490000e+02
+75%                          NaN  7.662723e+17        1.819250e+03
+max                          NaN  8.111532e+17        4.572706e+06
+
+       UserFriendsCount  UserListedCount  UserTweetCount  MacroIterationNumber
+
+count      42368.000000     42368.000000    4.236800e+04          42368.000000
+
+mean        3859.351846       312.092546    3.777249e+04            226.111688
+
+std        19345.980461       850.623581    9.001777e+04            128.720271
+
+min            0.000000         0.000000    1.000000e+00              0.000000
+
+25%           40.000000        17.000000    2.793500e+03            115.000000
+
+50%          304.000000        41.000000    1.989700e+04            227.000000
+
+75%         1780.000000       217.000000    3.327400e+04            337.000000
+
+max       689302.000000     26577.000000    2.064424e+06            449.000000
+
+
+## identify the categorical and Numerical variables 
+
+>> allcolumns= inputtweet.columns
+>> numericcol= inputtweet._get_numeric_data().columns
+>> numericcol
+
+Index(['TweetID', 'TweetRetweetFlag', 'TweetInReplyToStatusID',
+       'TweetInReplyToUserID', 'TweetRetweetCount', 'TweetFavoritesCount',
+       'TweetPlaceAttributes', 'TweetPlaceContainedWithin', 'UserID',
+       'UserFollowersCount', 'UserFriendsCount', 'UserListedCount',
+       'UserTweetCount', 'MacroIterationNumber'],
+      dtype='object')
+	  
+>> categoricalcol= list(set(allcolumns)-set(numericcol))
+>> categoricalcol
+
+['TweetSource', 'TweetPostedTime', 'UserExpandedLink', 'TweetPlaceBoundingBox',
+'TweetInReplyToScreenName', 'UserScreenName', 'TweetBody', 'UserSignupDate', 'Us
+erName', 'TweetPlaceName', 'UserDescription', 'UserLink', 'TweetCountry', 'Tweet
+PlaceID', 'UserLocation', 'TweetPlaceFullName', 'TweetHashtags', 'tweet.place']
+
+## Now have divided our data into numerical and categorical columns, moving ahead we need to check the columns with null values.
+
+>> inputtweet.isnull().any()
+
+TweetPostedTime              False
+TweetID                      False
+TweetBody                    False
+TweetRetweetFlag             False
+TweetSource                  False
+TweetInReplyToStatusID        True
+TweetInReplyToUserID          True
+TweetInReplyToScreenName      True
+TweetRetweetCount            False
+TweetFavoritesCount          False
+TweetHashtags                 True
+TweetPlaceID                  True
+TweetPlaceName                True
+TweetPlaceFullName            True
+TweetCountry                  True
+TweetPlaceBoundingBox         True
+TweetPlaceAttributes          True
+TweetPlaceContainedWithin     True
+UserID                       False
+UserName                     False
+UserScreenName               False
+UserLocation                  True
+UserDescription               True
+UserLink                      True
+UserExpandedLink              True
+UserFollowersCount           False
+UserFriendsCount             False
+UserListedCount              False
+UserSignupDate               False
+UserTweetCount               False
+MacroIterationNumber         False
+tweet.place                   True
+dtype: bool
+
+## This result tells us the coluns with missing values. If the output is true then 'missng values are there in that column' and false 'No missing values'.
+## As we can see here that dataset has 16 columns with missing values in it.
+## as the number of columns with missing values is hight we need to romove some of it which are not ceating any significance.
+
+## we will create a new variable which will give us the percentage values of null in every column and then 
+
+>> colnullper=inputtweet.isnull().sum()/inputtweet.shape[0]
+	  
+>> colnullper
+
+TweetPostedTime              0.000000
+TweetID                      0.000000
+TweetBody                    0.000000
+TweetRetweetFlag             0.000000
+TweetSource                  0.000000
+TweetInReplyToStatusID       0.997616
+TweetInReplyToUserID         0.995539
+TweetInReplyToScreenName     0.995539
+TweetRetweetCount            0.000000
+TweetFavoritesCount          0.000000
+TweetHashtags                0.002360
+TweetPlaceID                 0.976397
+TweetPlaceName               0.976397
+TweetPlaceFullName           0.976397
+TweetCountry                 0.976421
+TweetPlaceBoundingBox        0.976397
+TweetPlaceAttributes         1.000000
+TweetPlaceContainedWithin    1.000000
+UserID                       0.000000
+UserName                     0.000000
+UserScreenName               0.000000
+UserLocation                 0.378257
+UserDescription              0.103002
+UserLink                     0.608218
+UserExpandedLink             0.609092
+UserFollowersCount           0.000000
+UserFriendsCount             0.000000
+UserListedCount              0.000000
+UserSignupDate               0.000000
+UserTweetCount               0.000000
+MacroIterationNumber         0.000000
+tweet.place                  0.976397
+dtype: float64
+
+## We will have to assume that null percentage with more than 60% is not going to be in the calculation as they 
+##dont make any significant changes in the dataset.
+## tweeting and retweeting can have a pattern if hashtags have been analysed. so seeing the hastag percentage it is 24%, still manageable to conduct the analysis.
+# we will remove these columns.
+
+>> colnullperc=pd.DataFrame(colnullper).reset_index() ## Converting Series to Dataframe
+>> colnullperc.columns=['ColName','Value']				## giving dataframe column names
+>> dropcol=colnullperc.loc[colnullperc['Value']>0.8000]
+>> dropcolfinal=dropcol['ColName']  ## created a final list of columns to be dropped
+
+
+>> inputtweet_mo= inputtweet.drop(dropcolfinal, axis=1).dropna() ## we have created new datafrane without all teh columns where null values percentage> 80%
+
+## Now wherever we have missing values in the dataset we will imput the mean value for Numerical variables. 
+## and for the categorical variables we will impute the value with -9999
+
+
+>> numericcol_mo= list(set(numericcol)-set(dropcol['ColName']))  ## Removed the dropeed column
+
+>> inputtweet_mo[numericcol_mo] = inputtweet_mo[numericcol_mo].fillna(inputtweet_mo[numericcol_mo].mean(),inplace=True) 
+
+>> Categorical_mo= list(set(categoricalcol)-set(dropcol['ColName']))  ## Removed the dropeed column
+
+>> inputtweet_mo[Categorical_mo] = inputtweet_mo[Categorical_mo].fillna(value = -9999)
+
+## Taking a look at the datat it can be seen that these tweets are of teh same date so the analysis should be at time level. we will sepearte date and time and append new columns
+
+>> inputtweet_mo.TweetPostedTime= pd.to_datetime(inputtweet_mo.TweetPostedTime)
+
+>> inputtweet_mo.UserSignupDate= pd.to_datetime(inputtweet_mo.UserSignupDate)
+
+inputtweet_mo['thour'] = inputtweet_mo.TweetPostedTime.apply(lambda x: x.hour)
+inputtweet_mo['tminute'] = inputtweet_mo.TweetPostedTime.apply(lambda x: x.minute)
+inputtweet_mo['tseconds'] = inputtweet_mo.TweetPostedTime.apply(lambda x: x.second)
+
+## for a single day we dont need posteddate now, so we will remove it. also Username and userscreen is redundant, as we are doing the analysis for the retweet so
+## username does not make much sense. we still have userid with us.
+## tweethashtag is very important as to check the count of tweet for a particular tag. we can have a segmentation to hastags
+
+
+>> remcol= ['UserName', 'TweetSource', 'UserScreenName','TweetPostedTime']
+>> inputtweet_mo.drop(remcol, axis=1, inplace=True) 			## Remove the columns which are 
+
+## Calculate the number of unique Tweets, check all teh tweets with TweetBody not having 'RT' at start
+
+>> nooforiginaltweet=[element for element in inputtweet_mo['TweetBody'].values
+if not element.startswith('RT')]
+>>  len(ooforiginaltweet)
+
+## calculate Number of Retweets
+
+>>> noorretweet=[element for element in inputtweet_mo['TweetBody'].values if ele
+ment.startswith('RT')]
+>>> len(noorretweet)
+
+
+## Now looking at the body of the tweet. We need to normalize  this column. 
+## To do that first step is to Remove the "RT" from the start whereever its occurring.
+
+## Need to create the tfidf (term frequency- inverse dicument frequency)
+
+
+
+df = in_df.copy()
+tfidf = TfidfVectorizer(min_df=50).fit(df[var])
+feature_names = [var_desc+i for i in tfidf.get_feature_names()]
+tfidf_df = pd.DataFrame(tfidf.transform(df[var]).toarray(), columns=feature_names, index=df.index)
+combined_df = pd.concat([df.drop(var, axis=1), tfidf_df], axis=1)
+return combined_df
+
+	
+	 def remove_punctuation(s):
+     s = ''.join([i for i in s if i not in frozenset(string.punctuation)])
+     return s
+	 
+	 	 
+	 def remove_stopwords(s):
+     s = ''.join([i for i in s if i not in stopwords.words('english')])
+     return s
+	 
+	 def remove_rt(s):
+     s = ''.join([i for i in s if i not in 'RT'])
+     return s
+	 
+	 ##tweet2['TweetBody'].apply(remove_punctuation).apply(remove_stopwords).apply(remove_rt)
+	
+	t4=tweet2['TweetBody'].apply(remove_punctuation).apply(remove_stopwords).apply(remove_rt)
+	
+	>>> inputtweet_mo['TweetBody']=inputtweet_mo['TweetBody'].apply(remove_punctuati
+	on).apply(remove_rt).apply(remove_stopwords)
+
+	>>> inputtweet_mo['TweetHashtags']=inputtweet_mo['TweetHashtags'].astype(str).ap
+	ply(remove_punctuation).apply(remove_rt)
+	
+
+
+	
+	
+	>>> corpus=TweetHashtags1
+	>>> vectorizer = TfidfVectorizer(min_df=1)
+	>>> X = vectorizer.fit_transform(corpus)
+	>>> idf = vectorizer._tfidf.idf_
+	>>> print dict(zip(vectorizer.get_feature_names(), idf))
+	 
+	 
+	 
+	>> v = TfidfVectorizer()
+	>> x = v.fit_transform(tweet2['TweetBody'].values.astype('U'))
+	>>  x2 = v.transform(inputtweet['TweetBody'].values.astype('U'))
+	>> inputtweet_mo['TweetBody']=inputtweet['TweetBody']
+x2 = v.transform(inputtweet_mo['TweetBody'].values.astype('U'))
+inputtweet_mo['TweetBody2']=list(x2.toarray())
+inputtweet_mo['TweetHashtags2']=list(y2.toarray())
+
+
+
+ y2 = v.transform(inputtweet_mo['TweetHashtags'].values.astype('U'))
+	
+	>> inputtweet_mo['TweetHashtags1']=list(x)
+	>> y = v.fit_transform(tweet2['TweetBody'].values.astype('U'))
+	>> inputtweet_mo['Tweetbody1']=list(y)
+	>> z = v.fit_transform(tweet2['UserLocation'].values.astype('U'))
+	>> inputtweet_mo['UserLocation1']=list(z)
+	  
+	  
+	>>> rcol=['TweetBody','TweetHashtags','UserLocation']
+	>>> tweet2.drop(rcol, axis=1, inplace=True)
+	
+	
+	## all the other categorical variables except UserLocation1,TweetHashtags1,TweetBody : label encoders for these variables
+	>> for var in Categorical_mo
+	>> number = LabelEncoder()
+    >> Inputtweet_mo[var] = number.fit_transform(Inputtweet_mo[var].astype('str'))
+	
+	## dividing teh data into Test and Train
+	
+	>>> features= list(set(inputtweet_mo)-set(['TweetRetweetCount','TweetBody2','Twe
+	etHashtags2','UserLocation2'])) 
+	
+	>>> X=inputtweet_mo[features].values
+	>>> Y=inputtweet_mo['TweetRetweetCount'].values
+
+	>>> pd.DataFrame(v.transform(inputtweet['TweetBody']).toarray(),columns=feature_
+names, index=df.index)
+	 
+	 
+
+
